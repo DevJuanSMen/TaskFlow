@@ -1,10 +1,9 @@
 import { useState, useEffect } from 'react';
-import axios from 'axios';
-import { TaskProps } from '../components/TaskCard';
+import type { TaskProps } from '../components/TaskCard';
 
 // Facade Pattern: Oculta la complejidad de las llamadas a la API y el manejo de estado
 export function useBoardFacade(boardId: string) {
-  const [tasks, setTasks] = useState<TaskProps[]>([]);
+  const [tasks, _setTasks] = useState<TaskProps[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -17,7 +16,7 @@ export function useBoardFacade(boardId: string) {
       try {
         // En una app real, aquí iría la URL del backend
         // const response = await axios.get(`/api/tasks/board/${boardId}`);
-        // setTasks(response.data.data);
+        // _setTasks(response.data.data);
         
         console.log('🏛️ [Facade] Obteniendo tareas para el tablero:', boardId);
         // Simulamos delay
@@ -38,9 +37,9 @@ export function useBoardFacade(boardId: string) {
     // await axios.put(`/api/tasks/${taskId}/move`, { column: newColumn });
   };
 
-  const createTask = async (taskData: any) => {
+  const createTask = async (_taskData: any) => {
     console.log('🏛️ [Facade] Creando nueva tarea');
-    // await axios.post('/api/tasks', taskData);
+    // await axios.post('/api/tasks', _taskData);
   };
 
   return {
