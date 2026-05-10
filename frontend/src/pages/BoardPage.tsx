@@ -141,7 +141,9 @@ export const BoardPage = () => {
                 <div className="w-2.5 h-2.5 rounded-full bg-info"></div>
                 Por Hacer
               </h3>
-              <span className="bg-surface px-2 py-0.5 rounded text-xs text-text-secondary border border-border">3</span>
+              <span className="bg-surface px-2 py-0.5 rounded text-xs text-text-secondary border border-border">
+                {sortedTasks.filter(t => t.status === 'TODO' || !t.status).length}
+              </span>
             </div>
             
             <div className="flex-1 overflow-y-auto pr-1">

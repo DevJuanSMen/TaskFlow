@@ -22,7 +22,7 @@ export const LoginPage: React.FC = () => {
         _id: response.data.data.user._id,
         name: response.data.data.user.name,
         email: response.data.data.user.email,
-        token: response.data.token
+        token: response.data.data.token
       });
       
       navigate('/');
