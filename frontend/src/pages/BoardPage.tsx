@@ -1,8 +1,10 @@
+import React, { useState } from 'react';
 import { Sun, Moon, Layout, Plus, Search, User, Bell, LogOut } from 'lucide-react';
 import { useThemeStore } from '../store/themeStore';
 import { useAuthStore } from '../store/authStore';
 import { TaskCard } from '../components/TaskCard';
 import { useBoardFacade } from '../hooks/useBoardFacade';
+import { Modal } from '../components/ui/Modal';
 
 // Datos falsos para demostrar el diseño y el patrón Decorator
 const MOCK_TASKS = [
@@ -42,6 +44,9 @@ export const BoardPage = () => {
   const { theme, toggleTheme } = useThemeStore();
   const { user, logout } = useAuthStore();
   const { loading } = useBoardFacade('default-board');
+  
+  const [isNewTaskModalOpen, setIsNewTaskModalOpen] = useState(false);
+  const [selectedTask, setSelectedTask] = useState<any>(null);
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -104,7 +109,10 @@ export const BoardPage = () => {
             <p className="text-sm text-primary font-medium mb-1">MERN Stack Migration</p>
             <h2 className="text-3xl font-bold text-text tracking-tight">Tablero Principal</h2>
           </div>
-          <button className="bg-primary hover:bg-primary-hover text-white px-4 py-2 rounded-lg text-sm font-medium transition-all shadow-lg shadow-primary/25 hover:shadow-primary/40 hover:-translate-y-0.5 flex items-center gap-2">
+          <button 
+            onClick={() => setIsNewTaskModalOpen(true)}
+            className="bg-primary hover:bg-primary-hover text-white px-4 py-2 rounded-lg text-sm font-medium transition-all shadow-lg shadow-primary/25 hover:shadow-primary/40 hover:-translate-y-0.5 flex items-center gap-2"
+          >
             <Plus size={18} />
             <span>Nueva Tarea</span>
           </button>
@@ -130,7 +138,9 @@ export const BoardPage = () => {
                 </div>
               ) : (
                 MOCK_TASKS.map(task => (
-                  <TaskCard key={task._id} task={task} />
+                  <div key={task._id} onClick={() => setSelectedTask(task)}>
+                    <TaskCard task={task} />
+                  </div>
                 ))
               )}
             </div>
@@ -168,6 +178,57 @@ export const BoardPage = () => {
 
         </div>
       </main>
+
+      {/* Modal Nueva Tarea */}
+      <Modal 
+        isOpen={isNewTaskModalOpen} 
+        onClose={() => setIsNewTaskModalOpen(false)} 
+        title="Crear Nueva Tarea"
+      >
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-text-secondary">Título de la tarea</label>
+            <input type="text" className="w-full bg-surface border border-border rounded-xl py-2 px-4 outline-none focus:ring-2 ring-primary/50 text-text" placeholder="Ej: Implementar Proxy" />
+          </div>
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-text-secondary">Descripción</label>
+            <textarea className="w-full bg-surface border border-border rounded-xl py-2 px-4 outline-none focus:ring-2 ring-primary/50 text-text h-24" placeholder="Describe los detalles..."></textarea>
+          </div>
+          <div className="flex justify-end gap-3 pt-4">
+            <button onClick={() => setIsNewTaskModalOpen(false)} className="px-4 py-2 rounded-lg text-sm font-medium text-text-secondary hover:bg-surface-hover transition-colors">Cancelar</button>
+            <button className="bg-primary text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-primary-hover transition-all">Crear Tarea</button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Modal Detalles Tarea */}
+      <Modal 
+        isOpen={!!selectedTask} 
+        onClose={() => setSelectedTask(null)} 
+        title="Detalles de la Tarea"
+      >
+        {selectedTask && (
+          <div className="space-y-6">
+            <div>
+              <div className="flex gap-2 mb-3">
+                <span className="text-xs font-bold px-2 py-1 bg-primary/20 text-primary rounded uppercase">{selectedTask.type}</span>
+                <span className="text-xs font-bold px-2 py-1 bg-surface border border-border text-text-secondary rounded uppercase">{selectedTask.priority}</span>
+              </div>
+              <h3 className="text-2xl font-bold text-text">{selectedTask.title}</h3>
+            </div>
+            
+            <div className="p-4 bg-surface/50 rounded-xl border border-border">
+              <p className="text-text-secondary text-sm leading-relaxed">
+                Esta es una demostración del patrón **Decorator**. Los iconos que ves en la tarjeta (comentarios, adjuntos) son inyectados dinámicamente por la estructura decoradora del backend.
+              </p>
+            </div>
+
+            <div className="flex justify-end pt-4">
+              <button onClick={() => setSelectedTask(null)} className="bg-primary text-white px-6 py-2 rounded-lg font-medium hover:bg-primary-hover transition-all shadow-lg shadow-primary/20">Entendido</button>
+            </div>
+          </div>
+        )}
+      </Modal>
     </div>
   );
 };
