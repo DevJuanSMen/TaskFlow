@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Layout, Mail, Lock, User, ArrowRight, Loader2 } from 'lucide-react';
+import api from '../services/api';
 
 export const RegisterPage: React.FC = () => {
   const [name, setName] = useState('');
@@ -14,10 +15,12 @@ export const RegisterPage: React.FC = () => {
     setLoading(true);
     
     try {
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await api.post('/auth/register', { name, email, password });
+      alert('Registro exitoso. Ahora puedes iniciar sesión.');
       navigate('/login');
-    } catch (error) {
-      console.error('Error register', error);
+    } catch (error: any) {
+      console.error('Error register', error.response?.data || error.message);
+      alert('Error en el registro: ' + (error.response?.data?.message || 'Revisa tus datos'));
     } finally {
       setLoading(false);
     }

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Layout, Mail, Lock, ArrowRight, Loader2 } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
+import api from '../services/api';
 
 export const LoginPage: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -15,19 +16,19 @@ export const LoginPage: React.FC = () => {
     setLoading(true);
     
     try {
-      // Simulación de login (esto se conectará al backend)
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const response = await api.post('/auth/login', { email, password });
       
       login({
-        _id: '1',
-        name: 'Usuario Demo',
-        email: email,
-        token: 'fake-jwt-token'
+        _id: response.data.data.user._id,
+        name: response.data.data.user.name,
+        email: response.data.data.user.email,
+        token: response.data.token
       });
       
       navigate('/');
-    } catch (error) {
-      console.error('Error login', error);
+    } catch (error: any) {
+      console.error('Error login', error.response?.data || error.message);
+      alert('Error al iniciar sesión: ' + (error.response?.data?.message || 'Credenciales incorrectas'));
     } finally {
       setLoading(false);
     }

@@ -12,6 +12,7 @@ export interface TaskProps {
   title: string;
   type: string;
   priority: string;
+  status?: string;
   // Propiedades añadidas por el Decorador del Backend
   hasComments?: boolean;
   commentCount?: number;
