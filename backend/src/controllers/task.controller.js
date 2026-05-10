@@ -3,24 +3,8 @@ const Board = require('../models/Board');
 const { getTaskCreator } = require('../patterns/TaskFactory');
 const { TaskBuilder } = require('../patterns/TaskBuilder');
 const { TaskPrototype } = require('../patterns/Prototype');
-const multer = require('multer');
-const path = require('path');
-
-// Configuración de Multer para adjuntos
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, path.join(__dirname, '../../uploads'));
-  },
-  filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-    cb(null, uniqueSuffix + path.extname(file.originalname));
-  },
-});
-
-const upload = multer({
-  storage,
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB
-}).single('file');
+const storageAdapter = require('../patterns/structural/StorageAdapter');
+const { decorateTask } = require('../patterns/structural/TaskDecorator');
 
 /**
  * @desc    Crear tarea usando Factory Method
@@ -224,9 +208,12 @@ const getTask = async (req, res) => {
       });
     }
 
+    // Decorar tarea antes de enviar
+    const decoratedTask = decorateTask(task);
+
     res.json({
       success: true,
-      data: task,
+      data: decoratedTask,
     });
   } catch (error) {
     res.status(500).json({
@@ -638,61 +625,38 @@ const deleteComment = async (req, res) => {
  * @access  Private
  */
 const addAttachment = async (req, res) => {
-  upload(req, res, async (err) => {
-    try {
-      if (err) {
-        if (err.code === 'LIMIT_FILE_SIZE') {
-          return res.status(400).json({
-            success: false,
-            message: 'El archivo excede el tamaño máximo de 10 MB',
-          });
-        }
-        return res.status(400).json({
-          success: false,
-          message: 'Error al subir archivo',
-          error: err.message,
-        });
-      }
-
-      if (!req.file) {
-        return res.status(400).json({
-          success: false,
-          message: 'No se proporcionó archivo',
-        });
-      }
-
-      const task = await Task.findById(req.params.id);
-      if (!task) {
-        return res.status(404).json({
-          success: false,
-          message: 'Tarea no encontrada',
-        });
-      }
-
-      task.attachments.push({
-        filename: req.file.filename,
-        originalName: req.file.originalname,
-        mimetype: req.file.mimetype,
-        size: req.file.size,
-        path: `/uploads/${req.file.filename}`,
-        uploadedBy: req.user._id,
-      });
-
-      await task.save();
-
-      res.status(201).json({
-        success: true,
-        message: 'Archivo adjuntado',
-        data: task,
-      });
-    } catch (error) {
-      res.status(500).json({
+  try {
+    const task = await Task.findById(req.params.id);
+    if (!task) {
+      return res.status(404).json({
         success: false,
-        message: 'Error al adjuntar archivo',
-        error: error.message,
+        message: 'Tarea no encontrada',
       });
     }
-  });
+
+    // Utilizando el patrón Adapter para subir el archivo
+    const fileData = await storageAdapter.uploadFile(req, res);
+
+    task.attachments.push({
+      ...fileData,
+      uploadedBy: req.user._id,
+    });
+
+    await task.save();
+
+    res.status(201).json({
+      success: true,
+      message: 'Archivo adjuntado con Adapter pattern',
+      pattern: 'ADAPTER',
+      data: decorateTask(task),
+    });
+  } catch (error) {
+    res.status(error.message.includes('tamaño máximo') ? 400 : 500).json({
+      success: false,
+      message: 'Error al adjuntar archivo',
+      error: error.message,
+    });
+  }
 };
 
 /**

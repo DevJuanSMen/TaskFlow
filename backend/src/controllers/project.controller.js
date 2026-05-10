@@ -3,6 +3,8 @@ const Board = require('../models/Board');
 const Task = require('../models/Task');
 const User = require('../models/User');
 const { ProjectPrototype } = require('../patterns/Prototype');
+const ProjectFacade = require('../patterns/structural/ProjectFacade');
+const projectProxy = require('../patterns/structural/ProjectProxy');
 
 /**
  * @desc    Crear proyecto
@@ -13,34 +15,19 @@ const createProject = async (req, res) => {
   try {
     const { name, description, startDate, endDate } = req.body;
 
-    const project = await Project.create({
-      name,
-      description,
-      startDate: startDate || new Date(),
-      endDate,
-      owner: req.user._id,
-      members: [
-        {
-          user: req.user._id,
-          role: req.user.role,
-          joinedAt: new Date(),
-        },
-      ],
-    });
+    // Utilizando Facade para simplificar la creación de proyecto y tablero
+    const populatedProject = await ProjectFacade.createProjectWithDefaults(
+      { name, description, startDate, endDate },
+      req.user
+    );
 
-    // Crear tablero por defecto automáticamente (RF-03.1)
-    await Board.create({
-      name: 'Tablero Principal',
-      project: project._id,
-    });
-
-    const populatedProject = await Project.findById(project._id)
-      .populate('owner', 'name email avatar')
-      .populate('members.user', 'name email avatar');
+    // Limpiar caché (Proxy)
+    projectProxy.clearCache(req.user._id);
 
     res.status(201).json({
       success: true,
-      message: 'Proyecto creado exitosamente con tablero por defecto',
+      message: 'Proyecto creado exitosamente (usando Facade)',
+      pattern: 'FACADE',
       data: populatedProject,
     });
   } catch (error) {
@@ -59,34 +46,13 @@ const createProject = async (req, res) => {
  */
 const getProjects = async (req, res) => {
   try {
-    const projects = await Project.find({
-      $or: [{ owner: req.user._id }, { 'members.user': req.user._id }],
-    })
-      .populate('owner', 'name email avatar')
-      .populate('members.user', 'name email avatar')
-      .sort({ updatedAt: -1 });
-
-    // Calcular progreso de cada proyecto (RF-02.4)
-    const projectsWithProgress = await Promise.all(
-      projects.map(async (project) => {
-        const totalTasks = await Task.countDocuments({ project: project._id });
-        const completedTasks = await Task.countDocuments({
-          project: project._id,
-          column: 'Completado',
-        });
-        const progress = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
-
-        return {
-          ...project.toObject(),
-          totalTasks,
-          completedTasks,
-          progress,
-        };
-      })
-    );
+    // Utilizando Proxy para obtener proyectos en caché o de BD
+    const projectsWithProgress = await projectProxy.getUserProjects(req.user._id);
 
     res.json({
       success: true,
+      message: 'Proyectos obtenidos (Proxy Cache)',
+      pattern: 'PROXY',
       count: projectsWithProgress.length,
       data: projectsWithProgress,
     });
@@ -199,6 +165,8 @@ const updateProject = async (req, res) => {
       .populate('owner', 'name email avatar')
       .populate('members.user', 'name email avatar');
 
+    // Limpiar caché
+    projectProxy.clearCache(req.user._id);
     res.json({
       success: true,
       message: 'Proyecto actualizado exitosamente',
@@ -241,6 +209,8 @@ const deleteProject = async (req, res) => {
     await Board.deleteMany({ project: project._id });
     await Project.findByIdAndDelete(project._id);
 
+    // Limpiar caché
+    projectProxy.clearCache(req.user._id);
     res.json({
       success: true,
       message: 'Proyecto eliminado exitosamente',
@@ -304,6 +274,8 @@ const cloneProject = async (req, res) => {
       .populate('owner', 'name email avatar')
       .populate('members.user', 'name email avatar');
 
+    // Limpiar caché
+    projectProxy.clearCache(req.user._id);
     res.status(201).json({
       success: true,
       message: `Proyecto clonado exitosamente usando Patrón Prototype`,
@@ -346,6 +318,8 @@ const archiveProject = async (req, res) => {
     project.status = project.archived ? 'ARCHIVADO' : 'COMPLETADO';
     await project.save();
 
+    // Limpiar caché
+    projectProxy.clearCache(req.user._id);
     res.json({
       success: true,
       message: project.archived
@@ -417,6 +391,9 @@ const addMember = async (req, res) => {
       .populate('owner', 'name email avatar')
       .populate('members.user', 'name email avatar');
 
+    // Limpiar caché (también para el nuevo usuario agregado)
+    projectProxy.clearCache(req.user._id);
+    projectProxy.clearCache(userToAdd._id);
     res.json({
       success: true,
       message: `${userToAdd.name} agregado al proyecto`,
@@ -460,6 +437,9 @@ const removeMember = async (req, res) => {
 
     await project.save();
 
+    // Limpiar caché (para owner y el usuario removido)
+    projectProxy.clearCache(req.user._id);
+    projectProxy.clearCache(req.params.userId);
     res.json({
       success: true,
       message: 'Miembro eliminado del proyecto',
