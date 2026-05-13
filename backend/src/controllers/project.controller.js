@@ -21,8 +21,8 @@ const createProject = async (req, res) => {
       req.user
     );
 
-    // Limpiar caché (Proxy)
-    projectProxy.clearCache(req.user._id);
+    // Limpiar caché global (Proxy)
+    projectProxy.clearAllCache();
 
     res.status(201).json({
       success: true,
@@ -94,13 +94,27 @@ const getProject = async (req, res) => {
       });
     }
 
-    // Calcular progreso
-    const totalTasks = await Task.countDocuments({ project: project._id });
-    const completedTasks = await Task.countDocuments({
-      project: project._id,
-      column: 'Completado',
+    // Calcular progreso usando el Patrón Composite (Composite Pattern)
+    const { TaskComposite, TaskLeaf } = require('../patterns/structural/TaskComposite');
+    const tasks = await Task.find({ project: project._id });
+    
+    const projectComposite = new TaskComposite(project.name);
+    
+    tasks.forEach(task => {
+      if (task.subtasks && task.subtasks.length > 0) {
+        const taskComp = new TaskComposite(task.title);
+        task.subtasks.forEach(sub => {
+          taskComp.add(new TaskLeaf(sub.title, sub.completed));
+        });
+        projectComposite.add(taskComp);
+      } else {
+        projectComposite.add(new TaskLeaf(task.title, task.column === 'Completado'));
+      }
     });
-    const progress = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+
+    const totalTasks = tasks.length;
+    const completedTasks = tasks.filter(t => t.column === 'Completado').length;
+    const progress = projectComposite.calculatePercentage();
 
     res.json({
       success: true,
@@ -109,6 +123,7 @@ const getProject = async (req, res) => {
         totalTasks,
         completedTasks,
         progress,
+        pattern: 'COMPOSITE',
       },
     });
   } catch (error) {
@@ -165,8 +180,8 @@ const updateProject = async (req, res) => {
       .populate('owner', 'name email avatar')
       .populate('members.user', 'name email avatar');
 
-    // Limpiar caché
-    projectProxy.clearCache(req.user._id);
+    // Limpiar caché global
+    projectProxy.clearAllCache();
     res.json({
       success: true,
       message: 'Proyecto actualizado exitosamente',
@@ -209,8 +224,8 @@ const deleteProject = async (req, res) => {
     await Board.deleteMany({ project: project._id });
     await Project.findByIdAndDelete(project._id);
 
-    // Limpiar caché
-    projectProxy.clearCache(req.user._id);
+    // Limpiar caché global
+    projectProxy.clearAllCache();
     res.json({
       success: true,
       message: 'Proyecto eliminado exitosamente',
@@ -274,8 +289,8 @@ const cloneProject = async (req, res) => {
       .populate('owner', 'name email avatar')
       .populate('members.user', 'name email avatar');
 
-    // Limpiar caché
-    projectProxy.clearCache(req.user._id);
+    // Limpiar caché global
+    projectProxy.clearAllCache();
     res.status(201).json({
       success: true,
       message: `Proyecto clonado exitosamente usando Patrón Prototype`,
@@ -318,8 +333,8 @@ const archiveProject = async (req, res) => {
     project.status = project.archived ? 'ARCHIVADO' : 'COMPLETADO';
     await project.save();
 
-    // Limpiar caché
-    projectProxy.clearCache(req.user._id);
+    // Limpiar caché global
+    projectProxy.clearAllCache();
     res.json({
       success: true,
       message: project.archived
@@ -391,9 +406,8 @@ const addMember = async (req, res) => {
       .populate('owner', 'name email avatar')
       .populate('members.user', 'name email avatar');
 
-    // Limpiar caché (también para el nuevo usuario agregado)
-    projectProxy.clearCache(req.user._id);
-    projectProxy.clearCache(userToAdd._id);
+    // Limpiar caché global
+    projectProxy.clearAllCache();
     res.json({
       success: true,
       message: `${userToAdd.name} agregado al proyecto`,
@@ -437,9 +451,8 @@ const removeMember = async (req, res) => {
 
     await project.save();
 
-    // Limpiar caché (para owner y el usuario removido)
-    projectProxy.clearCache(req.user._id);
-    projectProxy.clearCache(req.params.userId);
+    // Limpiar caché global
+    projectProxy.clearAllCache();
     res.json({
       success: true,
       message: 'Miembro eliminado del proyecto',

@@ -9,13 +9,13 @@ import { BoardView } from './pages/BoardView';
 import { useAuthStore } from './store/authStore';
 
 // Componente para proteger rutas privadas
-const PrivateRoute = ({ children }: { children: JSX.Element }) => {
+const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
   const { isAuthenticated } = useAuthStore();
   return isAuthenticated ? children : <Navigate to="/login" />;
 };
 
 // Componente para evitar que usuarios logueados vean login/register
-const PublicRoute = ({ children }: { children: JSX.Element }) => {
+const PublicRoute = ({ children }: { children: React.ReactNode }) => {
   const { isAuthenticated } = useAuthStore();
   return !isAuthenticated ? children : <Navigate to="/dashboard" />;
 };

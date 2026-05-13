@@ -22,21 +22,39 @@ class ProjectCacheProxy {
       .populate('members.user', 'name email avatar')
       .sort({ updatedAt: -1 });
 
-    // Calcular progreso
+    // Calcular progreso usando el Patrón Composite
+    const { TaskComposite, TaskLeaf } = require('./TaskComposite');
+
     const projectsWithProgress = await Promise.all(
       projects.map(async (project) => {
-        const totalTasks = await Task.countDocuments({ project: project._id });
-        const completedTasks = await Task.countDocuments({
-          project: project._id,
-          column: 'Completado',
+        const tasks = await Task.find({ project: project._id });
+        
+        const projectComposite = new TaskComposite(project.name);
+        
+        tasks.forEach(task => {
+          if (task.subtasks && task.subtasks.length > 0) {
+            // Si tiene subtareas, la tarea es un compuesto de sus subtareas
+            const taskComp = new TaskComposite(task.title);
+            task.subtasks.forEach(sub => {
+              taskComp.add(new TaskLeaf(sub.title, sub.completed));
+            });
+            projectComposite.add(taskComp);
+          } else {
+            // Si no tiene subtareas, la tarea es una hoja
+            projectComposite.add(new TaskLeaf(task.title, task.column === 'Completado'));
+          }
         });
-        const progress = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+
+        const totalTasks = tasks.length;
+        const completedTasks = tasks.filter(t => t.column === 'Completado').length;
+        const progress = projectComposite.calculatePercentage();
 
         return {
           ...project.toObject(),
           totalTasks,
           completedTasks,
           progress,
+          pattern: 'COMPOSITE', // Indicar que se usó Composite para el progreso
         };
       })
     );
@@ -52,6 +70,11 @@ class ProjectCacheProxy {
   clearCache(userId) {
     console.log('🛡️ [Proxy] Limpiando caché para usuario:', userId.toString());
     this.cache.delete(userId.toString());
+  }
+
+  clearAllCache() {
+    console.log('🛡️ [Proxy] Limpiando TODA la caché de proyectos...');
+    this.cache.clear();
   }
 }
 

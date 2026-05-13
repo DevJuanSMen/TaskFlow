@@ -22,7 +22,7 @@ export const Register: React.FC = () => {
       await api.post('/auth/register', formData);
       // 2. Auto-login tras registro exitoso
       const response = await api.post('/auth/login', { email: formData.email, password: formData.password });
-      login(response.data.token, response.data.data);
+      login(response.data.data.token, response.data.data.user);
       navigate('/dashboard');
     } catch (err: any) {
       setError(err.response?.data?.message || 'Error al registrar usuario');

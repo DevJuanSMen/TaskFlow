@@ -5,6 +5,7 @@ const { TaskBuilder } = require('../patterns/TaskBuilder');
 const { TaskPrototype } = require('../patterns/Prototype');
 const storageAdapter = require('../patterns/structural/StorageAdapter');
 const { decorateTask } = require('../patterns/structural/TaskDecorator');
+const projectProxy = require('../patterns/structural/ProjectProxy');
 
 /**
  * @desc    Crear tarea usando Factory Method
@@ -58,6 +59,7 @@ const createTask = async (req, res) => {
     });
 
     const task = await Task.create(taskData);
+    projectProxy.clearAllCache();
 
     const populatedTask = await Task.findById(task._id)
       .populate('assignees', 'name email avatar')
@@ -125,6 +127,7 @@ const createTaskWithBuilder = async (req, res) => {
 
     const taskData = builder.build();
     const task = await Task.create(taskData);
+    projectProxy.clearAllCache();
 
     const populatedTask = await Task.findById(task._id)
       .populate('assignees', 'name email avatar')
@@ -288,6 +291,7 @@ const updateTask = async (req, res) => {
     });
 
     await task.save();
+    projectProxy.clearAllCache();
 
     const updatedTask = await Task.findById(task._id)
       .populate('assignees', 'name email avatar')
@@ -356,6 +360,7 @@ const moveTask = async (req, res) => {
     });
 
     await task.save();
+    projectProxy.clearAllCache();
 
     const updatedTask = await Task.findById(task._id)
       .populate('assignees', 'name email avatar')
@@ -383,6 +388,7 @@ const moveTask = async (req, res) => {
 const deleteTask = async (req, res) => {
   try {
     const task = await Task.findByIdAndDelete(req.params.id);
+    if (task) projectProxy.clearAllCache();
     if (!task) {
       return res.status(404).json({
         success: false,
@@ -424,6 +430,7 @@ const cloneTask = async (req, res) => {
     const clonedData = prototype.clone(req.user._id);
 
     const clonedTask = await Task.create(clonedData);
+    projectProxy.clearAllCache();
 
     const populatedTask = await Task.findById(clonedTask._id)
       .populate('assignees', 'name email avatar')
@@ -472,6 +479,7 @@ const addSubtask = async (req, res) => {
     });
 
     await task.save();
+    projectProxy.clearAllCache();
 
     res.status(201).json({
       success: true,
@@ -515,6 +523,7 @@ const toggleSubtask = async (req, res) => {
     subtask.completedAt = subtask.completed ? new Date() : null;
 
     await task.save();
+    projectProxy.clearAllCache();
 
     res.json({
       success: true,

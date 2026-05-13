@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import api from '../api/axios';
-import { TaskProps } from '../components/TaskCard';
+import type { TaskProps } from '../components/TaskCard';
 
 export function useBoardFacade(boardId: string) {
   const [tasks, setTasks] = useState<TaskProps[]>([]);
@@ -17,7 +17,7 @@ export function useBoardFacade(boardId: string) {
         api.get(`/boards/${boardId}`),
         api.get(`/tasks/board/${boardId}`)
       ]);
-      setBoardInfo(boardRes.data.data);
+      setBoardInfo(boardRes.data.data.board);
       setTasks(tasksRes.data.data);
     } catch (err) {
       setError('Error al cargar el tablero');

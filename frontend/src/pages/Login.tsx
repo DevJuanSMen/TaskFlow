@@ -20,7 +20,7 @@ export const Login: React.FC = () => {
 
     try {
       const response = await api.post('/auth/login', { email, password });
-      login(response.data.token, response.data.data);
+      login(response.data.data.token, response.data.data.user);
       navigate('/dashboard');
     } catch (err: any) {
       setError(err.response?.data?.message || 'Error al iniciar sesión');

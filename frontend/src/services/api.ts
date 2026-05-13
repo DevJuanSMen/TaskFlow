@@ -9,7 +9,7 @@ const api = axios.create({
 // Interceptor para inyectar el token
 api.interceptors.request.use((config) => {
   // Obtener token directo del estado de Zustand sin suscribirse
-  const token = useAuthStore.getState().user?.token;
+  const token = useAuthStore.getState().token;
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
